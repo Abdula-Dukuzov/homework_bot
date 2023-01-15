@@ -13,7 +13,7 @@ class InvalidResponseCode(Exception):
     pass
 
 
-class ConnectinError(Exception):
+class ConnectionError(Exception):
     """Не верный код ответа."""
     pass
 

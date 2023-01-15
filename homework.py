@@ -1,18 +1,22 @@
-import telegram
-import time
-import requests
 import logging
-import sys
 import os
-import exceptions
-from dotenv import load_dotenv
+import sys
+import time
 from http import HTTPStatus
+from json.decoder import JSONDecodeError
 
+import requests
+import telegram
+from dotenv import load_dotenv
+
+import exceptions
+
+logger = logging.getLogger(__name__)
 load_dotenv()
 
-PRACTICUM_TOKEN = os.getenv('PRACTICUM_TOKEN_1')
-TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN_1')
-TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID_1')
+PRACTICUM_TOKEN = os.getenv('PRACTICUM_TOKEN')
+TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
+TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
 
 RETRY_PERIOD = 600
 ENDPOINT = 'https://practicum.yandex.ru/api/user_api/homework_statuses/'
@@ -26,18 +30,24 @@ HOMEWORK_VERDICTS = {
 }
 
 
+success = 0
+
+
 def send_message(bot, message):
     """Отправляет сообщение в Telegram чат."""
     try:
-        logging.info('Начало отправки')
+        logger.info('Начало отправки')
         bot.send_message(
             chat_id=TELEGRAM_CHAT_ID,
             text=message,
         )
     except telegram.error.TelegramError as error:
-        logging.error(f'Error: {error}')
+        logger.error(f'Error: {error}')
     else:
-        logging.debug(f'Сообщение отправлено {message}')
+        logger.debug(f'Сообщение отправлено {message}')
+        global success
+        success += 1
+        return success
 
 
 def get_api_answer(current_timestamp):
@@ -49,28 +59,34 @@ def get_api_answer(current_timestamp):
         'params': {'from_date': timestamp},
     }
     try:
-        logging.info(
+        logger.info(
             'Начало запроса: url = {url},'
             'headers = {headers},'
             'params = {params}'.format(**params_request))
         homework_statuses = requests.get(**params_request)
         if homework_statuses.status_code != HTTPStatus.OK:
+            logging.error('Эндпойнт не доступен')
             raise exceptions.InvalidResponseCode(
                 'Не удалось получить ответ API, '
                 f'ошибка: {homework_statuses.status_code}'
                 f'причина: {homework_statuses.reason}'
                 f'текст: {homework_statuses.text}')
-        return homework_statuses.json()
     except Exception:
-        raise exceptions.ConnectinError(
+        raise exceptions.ConnectionError(
             'Не верный код ответа параметры запроса: url = {url},'
             'headers = {headers},'
             'params = {params}'.format(**params_request))
+    try:
+        homework_statuses.json()
+    except JSONDecodeError:
+        logging.error("Ответ не преобразован в JSON")
+        raise JSONDecodeError("Ответ не преобразован в JSON")
+    return homework_statuses.json()
 
 
 def check_response(response):
     """Проверить валидность ответа."""
-    logging.debug('Начало проверки')
+    logger.debug('Начало проверки')
     if not isinstance(response, dict):
         raise TypeError('Ошибка в типе ответа API')
     if 'homeworks' not in response or 'current_date' not in response:
@@ -105,8 +121,8 @@ def check_tokens():
 def main():
     """Основная логика работы бота."""
     if not check_tokens():
-        logging.critical('Отсутствует необходимое кол-во'
-                         ' переменных окружения')
+        logger.critical('Отсутствует необходимое кол-во'
+                        ' переменных окружения')
         sys.exit('Отсутсвуют переменные окружения')
     bot = telegram.Bot(token=TELEGRAM_TOKEN)
     current_timestamp = int(time.time())
@@ -127,7 +143,7 @@ def main():
                 current_report['output'] = homework.get('status')
             else:
                 current_report['output'] = 'Нет новых статусов работ.'
-            if current_report != prev_report:
+            if current_report != prev_report and success > 0:
                 message = parse_status(homework)
                 send_message(bot, message)
                 prev_report = current_report.copy()
@@ -136,14 +152,14 @@ def main():
                     current_timestamp
                 )
             else:
-                logging.debug('Статус не поменялся')
+                logger.debug('Статус не поменялся')
         except exceptions.NotForSending as error:
             message = f'Сбой в работе программы: {error}'
-            logging.error(message)
+            logger.error(message)
         except Exception as error:
             message = f'Сбой в работе программы: {error}'
             current_report['output'] = message
-            logging.error(message)
+            logger.error(message)
             if current_report != prev_report:
                 send_message(bot, message)
                 prev_report = current_report.copy
