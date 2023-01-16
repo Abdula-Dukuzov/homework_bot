@@ -143,7 +143,7 @@ def main():
                 current_report['output'] = homework.get('status')
             else:
                 current_report['output'] = 'Нет новых статусов работ.'
-            if current_report != prev_report and success > 0:
+            if current_report != prev_report:
                 message = parse_status(homework)
                 send_message(bot, message)
                 prev_report = current_report.copy()
@@ -160,7 +160,7 @@ def main():
             message = f'Сбой в работе программы: {error}'
             current_report['output'] = message
             logger.error(message)
-            if current_report != prev_report:
+            if current_report != prev_report and success > 0:
                 send_message(bot, message)
                 prev_report = current_report.copy
         finally:
