@@ -30,7 +30,7 @@ HOMEWORK_VERDICTS = {
 }
 
 
-success = 0
+success = False
 
 
 def send_message(bot, message):
@@ -45,8 +45,7 @@ def send_message(bot, message):
         logger.error(f'Error: {error}')
     else:
         logger.debug(f'Сообщение отправлено {message}')
-        global success
-        success += 1
+        success = True
         return success
 
 
@@ -160,7 +159,7 @@ def main():
             message = f'Сбой в работе программы: {error}'
             current_report['output'] = message
             logger.error(message)
-            if current_report != prev_report and success > 0:
+            if current_report != prev_report and success is True:
                 send_message(bot, message)
                 prev_report = current_report.copy
         finally:
