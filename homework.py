@@ -121,43 +121,27 @@ def main():
         sys.exit('Отсутсвуют переменные окружения')
     bot = telegram.Bot(token=TELEGRAM_TOKEN)
     current_timestamp = int(time.time())
-    current_report = {
-        'name': '',
-        'output': ''
-    }
-    prev_report = current_report.copy()
+    old_message = ''
     while True:
         try:
             response = get_api_answer(current_timestamp)
-            current_timestamp = response.get(
-                'current_data', current_timestamp)
-            new_homeworks = check_response(response)
-            if new_homeworks:
-                homework = new_homeworks[0]
-                current_report['name'] = homework.get('homework_name')
-                current_report['output'] = homework.get('status')
+            homeworks = check_response(response)
+            if not homeworks:
+                message = 'Пустой список'
+                logger.error(message)
+                raise exceptions.EmptyListException(message)
             else:
-                current_report['output'] = 'Нет новых статусов работ.'
-            if current_report != prev_report:
+                homework = homeworks[0]
                 message = parse_status(homework)
                 send_message(bot, message)
-                prev_report = current_report.copy()
-                current_timestamp = response.get(
-                    'current_date',
-                    current_timestamp
-                )
-            else:
-                logger.debug('Статус не поменялся')
-        except exceptions.NotForSending as error:
-            message = f'Сбой в работе программы: {error}'
-            logger.error(message)
+                current_timestamp = response.get('current_date')
+                time.sleep(RETRY_PERIOD)
         except Exception as error:
             message = f'Сбой в работе программы: {error}'
-            current_report['output'] = message
-            logger.error(message)
-            if send_message() is True:
+            if message != old_message:
                 send_message(bot, message)
-                prev_report = current_report.copy
+                old_message = message
+            logger.error(message)
         finally:
             time.sleep(RETRY_PERIOD)
 
