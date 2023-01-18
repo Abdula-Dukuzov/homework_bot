@@ -30,9 +30,6 @@ HOMEWORK_VERDICTS = {
 }
 
 
-success = False
-
-
 def send_message(bot, message):
     """Отправляет сообщение в Telegram чат."""
     try:
@@ -45,8 +42,7 @@ def send_message(bot, message):
         logger.error(f'Error: {error}')
     else:
         logger.debug(f'Сообщение отправлено {message}')
-        success = True
-        return success
+        return True
 
 
 def get_api_answer(current_timestamp):
@@ -159,7 +155,7 @@ def main():
             message = f'Сбой в работе программы: {error}'
             current_report['output'] = message
             logger.error(message)
-            if current_report != prev_report and success is True:
+            if send_message() is True:
                 send_message(bot, message)
                 prev_report = current_report.copy
         finally:
