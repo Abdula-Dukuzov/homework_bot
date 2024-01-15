@@ -9,7 +9,7 @@ python-telegram-bot
 requests
 Как запустить проект:
 Клонируйте репозиторий на локальную машину
-git clone git@github.com:ilonka05/homework_bot.git
+git clone git@github.com:Abdula-Dukuzov/homework_bot.git
 Перейдите в папку с проектом
 cd homework_bot
 Создайте и активируйте виртуальное окружение
